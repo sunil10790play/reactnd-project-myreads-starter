@@ -1,34 +1,74 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
 import BooksGrid from "./BooksGrid";
+import * as BooksAPI from "./BooksAPI";
 
 class SearchBooks extends Component {
   state = {
     searchQuery: "",
+    booksDisplayed: [],
+  };
+
+  getSearchBooks = () => {
+    if (this.state.searchQuery) {
+      BooksAPI.search(this.state.searchQuery).then((searchBooks) => {
+        if (!searchBooks.error) {
+          const updatedShelfBooks = searchBooks.map((searchBook) => {
+            const matchedBook = this.props.books.find((book) => {
+              return book.id === searchBook.id;
+            });
+            if (matchedBook) {
+              return { ...searchBook, shelf: matchedBook.shelf };
+            } else {
+              return { ...searchBook, shelf: "none" };
+            }
+          });
+
+          this.setState(() => ({
+            booksDisplayed: updatedShelfBooks,
+          }));
+        } else {
+          this.setState(() => ({
+            booksDisplayed: [],
+          }));
+        }
+      });
+    } else {
+      this.setState(() => ({
+        booksDisplayed: [],
+      }));
+    }
   };
 
   updateSearchQuery = (value) => {
-    this.setState(() => ({
-      searchQuery: value,
+    this.setState(
+      () => ({
+        searchQuery: value,
+      }),
+      () => {
+        this.getSearchBooks();
+      }
+    );
+  };
+
+  changeShelf = (book, value) => {
+    this.setState((prevState) => ({
+      booksDisplayed: prevState.booksDisplayed.map((bookDisplayed) => {
+        if (bookDisplayed.id === book.id) {
+          return { ...bookDisplayed, shelf: value };
+        }
+        return bookDisplayed;
+      }),
     }));
+    this.props.onShelfChange(book, value);
   };
 
   render() {
-    const booksDisplayed = this.props.books.filter(
-      (book) =>
-        book.title
-          .toLowerCase()
-          .includes(this.state.searchQuery.toLowerCase()) ||
-        book.authors.find((author) =>
-          author.toLowerCase().includes(this.state.searchQuery.toLowerCase())
-        )
-    );
-
     return (
       <div className="search-books">
         <div className="search-books-bar">
-          <Link to="/">
-            <button className="close-search">Close</button>
+          <Link to="/" className="close-search">
+            Close
           </Link>
           <div className="search-books-input-wrapper">
             {/*
@@ -49,8 +89,8 @@ class SearchBooks extends Component {
         </div>
         <div className="search-books-results">
           <BooksGrid
-            books={booksDisplayed}
-            onShelfChange={this.props.onShelfChange}
+            books={this.state.booksDisplayed}
+            onShelfChange={this.changeShelf}
           />
         </div>
       </div>
